@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduTHY · AI 智能答疑</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+            background: #f0f2f5;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .chat-container {
+            width: 100%;
+            max-width: 720px;
+            height: 90vh;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 24px rgba(0,0,0,.08);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .chat-header {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: #fff;
+            padding: 18px 24px;
+        }
+        .chat-header h1 { font-size: 18px; }
+        .chat-header p { font-size: 13px; opacity: .85; margin-top: 4px; }
+        .chat-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .msg {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            line-height: 1.6;
+            font-size: 14px;
+            word-break: break-word;
+        }
+        .msg.user {
+            align-self: flex-end;
+            background: #4f46e5;
+            color: #fff;
+            border-bottom-right-radius: 4px;
+        }
+        .msg.bot {
+            align-self: flex-start;
+            background: #f3f4f6;
+            color: #111827;
+            border-bottom-left-radius: 4px;
+        }
+        .msg.bot .meta {
+            display: block;
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 6px;
+        }
+        .chat-input {
+            border-top: 1px solid #e5e7eb;
+            padding: 14px;
+            display: flex;
+            gap: 10px;
+        }
+        .chat-input input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+        }
+        .chat-input input:focus { border-color: #4f46e5; }
+        .chat-input button {
+            padding: 12px 22px;
+            background: #4f46e5;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .chat-input button:disabled { background: #9ca3af; cursor: not-allowed; }
+        .typing { color: #9ca3af; font-style: italic; }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>🎓 EduTHY · AI 智能答疑助手</h1>
+            <p>基于课程知识库的智能问答，支持语义模糊匹配</p>
+        </div>
+        <div class="chat-body" id="chatBody">
+            <div class="msg bot">
+                你好！我是课程 AI 答疑助手，可以回答关于课程内容的问题。
+                试试问我：「如何查看当前目录？」
+            </div>
+        </div>
+        <div class="chat-input">
+            <input type="text" id="questionInput" placeholder="请输入你的问题，回车发送..." autocomplete="off">
+            <button id="sendBtn" onclick="sendQuestion()">发送</button>
+        </div>
+    </div>
+
+    <script>
+        const input = document.getElementById('questionInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const body = document.getElementById('chatBody');
+
+        input.addEventListener('keydown', e => {
+            if (e.key === 'Enter') sendQuestion();
+        });
+
+        function appendMsg(text, type, meta) {
+            const div = document.createElement('div');
+            div.className = 'msg ' + type;
+            div.textContent = text;
+            if (meta) {
+                const m = document.createElement('span');
+                m.className = 'meta';
+                m.textContent = meta;
+                div.appendChild(m);
+            }
+            body.appendChild(div);
+            body.scrollTop = body.scrollHeight;
+        }
+
+        async function sendQuestion() {
+            const q = input.value.trim();
+            if (!q) return;
+            appendMsg(q, 'user');
+            input.value = '';
+            sendBtn.disabled = true;
+
+            const typing = document.createElement('div');
+            typing.className = 'msg bot typing';
+            typing.textContent = '思考中...';
+            body.appendChild(typing);
+            body.scrollTop = body.scrollHeight;
+
+            try {
+                const resp = await fetch('/ask/', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({question: q})
+                });
+                const data = await resp.json();
+                typing.remove();
+                const meta = data.matched
+                    ? `命中章节：${data.chapter} · 相似度 ${data.score}`
+                    : '未命中知识库，已生成兜底回答';
+                appendMsg(data.answer || data.error, 'bot', meta);
+            } catch (err) {
+                typing.remove();
+                appendMsg('网络错误，请稍后重试。', 'bot');
+            } finally {
+                sendBtn.disabled = false;
+                input.focus();
+            }
+        }
+
+        input.focus();
+    </script>
+</body>
+</html>

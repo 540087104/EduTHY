@@ -1,0 +1,17 @@
+# EduTHY gunicorn systemd 服务
+# 将此文件放到 /etc/systemd/system/eduthy.service
+# 然后执行: sudo systemctl daemon-reload && sudo systemctl enable --now eduthy
+
+[Unit]
+Description=EduTHY Django Gunicorn Service
+After=network.target
+
+[Service]
+User=root
+Group=root
+WorkingDirectory=/home/EduTHY
+ExecStart=/home/EduTHY/venv/bin/gunicorn EduTHY.wsgi:application --bind 127.0.0.1:8000 --workers 2
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
